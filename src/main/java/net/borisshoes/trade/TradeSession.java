@@ -53,8 +53,8 @@ public class TradeSession {
    
       guiFrom = new TradeGui(ScreenHandlerType.GENERIC_9X6,tFrom,this);
       guiTo = new TradeGui(ScreenHandlerType.GENERIC_9X6,tTo,this);
-      guiFrom.setTitle(Text.literal("Trading with "+tTo.getNameForScoreboard()));
-      guiTo.setTitle(Text.literal("Trading with "+tFrom.getNameForScoreboard()));
+      guiFrom.setTitle(Text.translatable("ui.fabrictrade.title", tTo.getName().getString()));
+      guiTo.setTitle(Text.translatable("ui.fabrictrade.title", tFrom.getName().getString()));
       
       for(int i=0; i<12;i++){
          guiFrom.setSlotRedirect(yourSlots[i], new Slot(inv,i,0,0));
@@ -62,10 +62,10 @@ public class TradeSession {
       }
    
       buildBorder();
-      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
-      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
+      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirm")));
+      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirm")));
+      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.waiting")));
+      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.waiting")));
       fromReady = false;
       toReady = false;
       
@@ -104,17 +104,19 @@ public class TradeSession {
       }
       
       GameProfile fromProfile = tFrom.getGameProfile();
-      GuiElementBuilder fromHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
-      guiFrom.setSlot(2,fromHead.setName((Text.literal("Your Items"))));
-      guiTo.setSlot(6,fromHead.setName((Text.literal(tFrom.getNameForScoreboard()+"'s Items"))));
-   
+      GuiElementBuilder fromHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
+      GuiElementBuilder fromHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
+      guiFrom.setSlot(2,fromHead1.setName((Text.translatable("ui.fabrictrade.items.your"))));
+      guiTo.setSlot(6,fromHead2.setName((Text.translatable("ui.fabrictrade.items.partner", tFrom.getDisplayName()))));
+
       GameProfile toProfile = tTo.getGameProfile();
-      GuiElementBuilder toHead = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
-      guiTo.setSlot(2,toHead.setName((Text.literal("Your Items"))));
-      guiFrom.setSlot(6,toHead.setName((Text.literal(tTo.getNameForScoreboard()+"'s Items"))));
-   
-      guiTo.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.literal("Cancel Trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
-      guiFrom.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.literal("Cancel Trade").formatted(Formatting.DARK_RED,Formatting.BOLD)));
+      GuiElementBuilder toHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
+      GuiElementBuilder toHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
+      guiTo.setSlot(2,toHead1.setName((Text.translatable("ui.fabrictrade.items.your"))));
+      guiFrom.setSlot(6,toHead2.setName((Text.translatable("ui.fabrictrade.items.partner", tTo.getDisplayName()))));
+
+      guiTo.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.translatable("ui.fabrictrade.cancel")));
+      guiFrom.setSlot(49,new GuiElementBuilder(Items.BARRIER).setName(Text.translatable("ui.fabrictrade.cancel")));
    }
    
    public void updateGuis(){
@@ -157,10 +159,10 @@ public class TradeSession {
    }
    
    public void setUnready(){
-      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Confirm").formatted(Formatting.RED)));
-      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
-      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.literal("Waiting for player...").formatted(Formatting.RED)));
+      guiTo.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirm")));
+      guiFrom.setSlot(9,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirm")));
+      guiTo.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.waiting")));
+      guiFrom.setSlot(17,new GuiElementBuilder(Items.RED_CONCRETE).setName(Text.translatable("ui.fabrictrade.waiting")));
       fromReady = false;
       toReady = false;
       Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_HAT,1f,.5f);
@@ -169,8 +171,8 @@ public class TradeSession {
    
    public void setReady(ServerPlayerEntity player){
       if(player.equals(tFrom)&&!fromReady){
-         guiFrom.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Confirmed!").formatted(Formatting.GREEN)));
-         guiTo.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Player Ready!").formatted(Formatting.GREEN)));
+         guiFrom.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirmed.you")));
+         guiTo.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirmed.partner")));
          fromReady = true;
          Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
          Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
@@ -178,8 +180,8 @@ public class TradeSession {
             readyState[i] = inv.getStack(i);
          }
       }else if(player.equals(tTo)&&!toReady){
-         guiTo.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Confirmed!").formatted(Formatting.GREEN)));
-         guiFrom.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.literal("Player Ready!").formatted(Formatting.GREEN)));
+         guiTo.setSlot(9,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirmed.you")));
+         guiFrom.setSlot(17,new GuiElementBuilder(Items.GREEN_CONCRETE).setName(Text.translatable("ui.fabrictrade.confirmed.partner")));
          toReady = true;
          Utils.playSongToPlayer(tFrom, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,2f);
          Utils.playSongToPlayer(tTo, SoundEvents.BLOCK_NOTE_BLOCK_PLING,1f,1f);
@@ -239,8 +241,8 @@ public class TradeSession {
          }
       }
       
-      tFrom.sendMessage(Text.literal("Trade Completed!").formatted(Formatting.GREEN), false);
-      tTo.sendMessage(Text.literal("Trade Completed!").formatted(Formatting.GREEN), false);
+      tFrom.sendMessage(Text.translatable("messages.fabrictrade.request.completed"), false);
+      tTo.sendMessage(Text.translatable("messages.fabrictrade.request.completed"), false);
       closing = true;
       guiFrom.close();
       guiTo.close();
@@ -284,10 +286,9 @@ public class TradeSession {
             }
          }
          
-         player.sendMessage(Text.literal("You have cancelled the trade request!").formatted(Formatting.RED), false);
+         player.sendMessage(Text.translatable("messages.fabrictrade.request.cancel.you").formatted(Formatting.RED), false);
          ServerPlayerEntity other = player.equals(tFrom) ? tTo : tFrom;
-         other.sendMessage(Text.literal(player.getName().getString()).formatted(Formatting.AQUA)
-               .append(Text.literal(" has cancelled the trade request!").formatted(Formatting.RED)), false);
+         other.sendMessage(Text.translatable("messages.fabrictrade.request.cancel.partner", player.getDisplayName()), false);
    
          guiFrom.close();
          guiTo.close();
