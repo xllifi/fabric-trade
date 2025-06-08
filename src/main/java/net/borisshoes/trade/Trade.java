@@ -155,9 +155,9 @@ public class Trade implements ModInitializer {
       tFrom.sendMessage(
               Text.translatable("messages.fabrictrade.request.new.sender",
                       tTo.getDisplayName(),
-                      Text.translatable("syntax.fabrictrade.cancel").styled(s ->
-                      s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradecancel " + tTo.getName().getString()))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradecancel " + tTo.getName().getString())))
+                      Text.translatable("syntax.fabrictrade.cancel").styled(s -> 
+                      s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + tTo.getName().getString()))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradecancel " + tTo.getName().getString())))
                               .withColor(Formatting.GOLD)),
                       config.getValue("timeout").toString()
               ), false);
@@ -166,12 +166,12 @@ public class Trade implements ModInitializer {
               Text.translatable("messages.fabrictrade.request.new.receiver",
                       tFrom.getDisplayName(),
                       Text.translatable("syntax.fabrictrade.accept").styled(s ->
-                              s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradeaccept " + tFrom.getName().getString()))
-                                      .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradeaccept " + tFrom.getName().getString())))
+                              s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + tFrom.getName().getString()))
+                                      .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradeaccept " + tFrom.getName().getString())))
                                       .withColor(Formatting.GOLD)),
                       Text.translatable("syntax.fabrictrade.deny").styled(s ->
-                              s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradedeny " + tFrom.getName().getString()))
-                                      .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradedeny " + tFrom.getName().getString())))
+                              s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + tFrom.getName().getString()))
+                                      .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradedeny " + tFrom.getName().getString())))
                                       .withColor(Formatting.GOLD)),
                       config.getValue("timeout").toString()
               ), false);
@@ -188,8 +188,8 @@ public class Trade implements ModInitializer {
             MutableText text = Text.translatable("messages.fabrictrade.request.accept.multiple" + "\n");
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradeaccept " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradeaccept " + name)))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + name))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradeaccept " + name)))
                               .withColor(Formatting.GOLD))).append(" "));
             tTo.sendMessage(text, false);
             return 1;
@@ -225,8 +225,8 @@ public class Trade implements ModInitializer {
             MutableText text = Text.translatable("messages.fabrictrade.request.deny.multiple" + "\n");
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradedeny " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradedeny " + name)))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + name))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradedeny " + name)))
                               .withColor(Formatting.GOLD))).append(" "));
             tTo.sendMessage(text, false);
             return 1;
@@ -257,8 +257,8 @@ public class Trade implements ModInitializer {
             MutableText text = Text.translatable("messages.fabrictrade.request.cancel.multiple" + "\n");
             Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tTo.getName().getString()).forEach(name ->
                   text.append(Text.literal(name).styled(s ->
-                        s.withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tradecancel " + name))
-                              .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("/tradecancel " + name)))
+                        s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + name))
+                              .withHoverEvent(new HoverEvent.ShowText(Text.literal("/tradecancel " + name)))
                               .withColor(Formatting.GOLD))).append(" "));
             tFrom.sendMessage(text, false);
             return 1;
