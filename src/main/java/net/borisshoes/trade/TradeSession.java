@@ -104,14 +104,14 @@ public class TradeSession {
       }
       
       GameProfile fromProfile = tFrom.getGameProfile();
-      GuiElementBuilder fromHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
-      GuiElementBuilder fromHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.server);
+      GuiElementBuilder fromHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.getServer());
+      GuiElementBuilder fromHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.getServer());
       guiFrom.setSlot(2,fromHead1.setName((Text.translatable("ui.fabrictrade.items.your"))));
       guiTo.setSlot(6,fromHead2.setName((Text.translatable("ui.fabrictrade.items.partner", tFrom.getDisplayName()))));
 
       GameProfile toProfile = tTo.getGameProfile();
-      GuiElementBuilder toHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
-      GuiElementBuilder toHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.server);
+      GuiElementBuilder toHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.getServer());
+      GuiElementBuilder toHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.getServer());
       guiTo.setSlot(2,toHead1.setName((Text.translatable("ui.fabrictrade.items.your"))));
       guiFrom.setSlot(6,toHead2.setName((Text.translatable("ui.fabrictrade.items.partner", tTo.getDisplayName()))));
 
