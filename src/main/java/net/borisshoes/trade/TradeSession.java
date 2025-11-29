@@ -95,23 +95,23 @@ public class TradeSession {
    
    public void buildBorder(){
       for(int i=0;i<borderSlots.length;i++){
-         guiFrom.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Text.empty()));
-         guiTo.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Text.empty()));
+         guiFrom.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).hideTooltip());
+         guiTo.setSlot(borderSlots[i],new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).hideTooltip());
       }
       for(int i=0;i<middleSlots.length;i++){
-         guiFrom.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
-         guiTo.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).setName(Text.empty()));
+         guiFrom.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).hideTooltip());
+         guiTo.setSlot(middleSlots[i],new GuiElementBuilder(Items.IRON_BARS).hideTooltip());
       }
       
       GameProfile fromProfile = tFrom.getGameProfile();
-      GuiElementBuilder fromHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.getServer());
-      GuiElementBuilder fromHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(fromProfile,tFrom.getServer());
+      GuiElementBuilder fromHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(fromProfile);
+      GuiElementBuilder fromHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(fromProfile);
       guiFrom.setSlot(2,fromHead1.setName((Text.translatable("ui.fabrictrade.items.your"))));
       guiTo.setSlot(6,fromHead2.setName((Text.translatable("ui.fabrictrade.items.partner", tFrom.getDisplayName()))));
 
       GameProfile toProfile = tTo.getGameProfile();
-      GuiElementBuilder toHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.getServer());
-      GuiElementBuilder toHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setSkullOwner(toProfile,tTo.getServer());
+      GuiElementBuilder toHead1 = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(toProfile);
+      GuiElementBuilder toHead2 = new GuiElementBuilder(Items.PLAYER_HEAD).setProfile(toProfile);
       guiTo.setSlot(2,toHead1.setName((Text.translatable("ui.fabrictrade.items.your"))));
       guiFrom.setSlot(6,toHead2.setName((Text.translatable("ui.fabrictrade.items.partner", tTo.getDisplayName()))));
 
@@ -124,7 +124,6 @@ public class TradeSession {
          guiFrom.setSlot(theirSlots[i],inv.getStack(i+12));
          guiTo.setSlot(theirSlots[i],inv.getStack(i));
       }
-      //System.out.println("updating guis");
       
       listener.finishUpdate();
    }

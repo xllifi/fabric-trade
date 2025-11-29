@@ -359,12 +359,6 @@ public class Trade implements ModInitializer {
                ", tTo=" + tTo +
                '}';
       }
-      
-      public void refreshPlayers() {
-         this.tFrom = tFrom.getServer().getPlayerManager().getPlayer(tFrom.getUuid());
-         this.tTo = tTo.getServer().getPlayerManager().getPlayer(tTo.getUuid());
-         assert tFrom != null && tTo != null;
-      }
    }
    
    enum TradeCooldownMode {
