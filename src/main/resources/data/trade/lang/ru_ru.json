@@ -1,4 +1,5 @@
 {
+  "messages.fabrictrade.prefix": "§6[Trade] §r",
   "syntax.fabrictrade.cancel": "/tradecancel [<никнейм>]",
   "syntax.fabrictrade.accept": "/tradeaccept [<никнейм>]",
   "syntax.fabrictrade.deny": "/tradedeny [<никнейм>]",

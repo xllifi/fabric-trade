@@ -3,7 +3,6 @@ package net.borisshoes.trade.utils;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -161,27 +160,6 @@ public class ConfigUtils {
       }
    }
    
-   public static class StringConfigValue extends IConfigValue<String> {
-      public StringConfigValue(@NotNull String name, String defaultValue, @Nullable Command command) {
-         super(name, defaultValue, null, command, null);
-      }
-
-      @Override
-      public String getFromProps(Properties props) {
-         return props.getProperty(name, defaultValue);
-      }
-
-      @Override
-      public ArgumentType<String> getArgumentType() {
-         return StringArgumentType.greedyString();
-      }
-
-      @Override
-      public String parseArgumentValue(CommandContext<CommandSourceStack> ctx) {
-         return StringArgumentType.getString(ctx, name);
-      }
-   }
-
    public static class BooleanConfigValue extends IConfigValue<Boolean> {
       protected final boolean defaultValue;
       

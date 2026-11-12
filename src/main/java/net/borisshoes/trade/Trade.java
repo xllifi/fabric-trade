@@ -7,7 +7,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.borisshoes.trade.utils.ConfigUtils;
-import net.borisshoes.trade.utils.Utils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -115,7 +114,7 @@ public class Trade implements ModInitializer {
         .getInstance()
         .getConfigDir()
         .resolve(CONFIG_NAME)
-        .toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[]{new ConfigUtils.StringConfigValue("chat-prefix", "§6[Trade] §r", null), new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")), new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")), new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated, new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))})
+        .toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[]{new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")), new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")), new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated, new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))})
     );
 
     CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
@@ -148,7 +147,7 @@ public class Trade implements ModInitializer {
 
   public void sendTradeMessage(ServerPlayer player, Component message) {
     player.sendSystemMessage(Component.empty()
-      .append(Utils.legacyText((String) config.getValue("chat-prefix")))
+      .append(Component.translatable("messages.fabrictrade.prefix"))
       .append(message), false);
   }
 
