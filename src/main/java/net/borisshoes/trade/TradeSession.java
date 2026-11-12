@@ -241,8 +241,8 @@ public class TradeSession {
          }
       }
       
-      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.completed"), false);
-      tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.completed"), false);
+      main.sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.completed"));
+      main.sendTradeMessage(tTo, Component.translatable("messages.fabrictrade.request.completed"));
       closing = true;
       guiFrom.close();
       guiTo.close();
@@ -286,9 +286,9 @@ public class TradeSession {
             }
          }
          
-         player.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.you").withStyle(ChatFormatting.RED), false);
+         main.sendTradeMessage(player, Component.translatable("messages.fabrictrade.request.cancel.you").withStyle(ChatFormatting.RED));
          ServerPlayer other = player.equals(tFrom) ? tTo : tFrom;
-         other.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.partner", player.getDisplayName()), false);
+         main.sendTradeMessage(other, Component.translatable("messages.fabrictrade.request.cancel.partner", player.getDisplayName()));
    
          guiFrom.close();
          guiTo.close();

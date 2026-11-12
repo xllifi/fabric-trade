@@ -7,6 +7,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.borisshoes.trade.utils.ConfigUtils;
+import net.borisshoes.trade.utils.Utils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -114,7 +115,7 @@ public class Trade implements ModInitializer {
         .getInstance()
         .getConfigDir()
         .resolve(CONFIG_NAME)
-        .toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[]{new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")), new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")), new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated, new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))})
+        .toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[]{new ConfigUtils.StringConfigValue("chat-prefix", "§6[Trade] §r", null), new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")), new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")), new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated, new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))})
     );
 
     CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
@@ -145,11 +146,17 @@ public class Trade implements ModInitializer {
 
   }
 
+  public void sendTradeMessage(ServerPlayer player, Component message) {
+    player.sendSystemMessage(Component.empty()
+      .append(Utils.legacyText((String) config.getValue("chat-prefix")))
+      .append(message), false);
+  }
+
   public int tradeInit(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
     final ServerPlayer tFrom = ctx.getSource().getPlayer();
 
     if (tFrom.equals(tTo)) {
-      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.self"), false);
+      sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.self"));
       return 1;
     }
 
@@ -157,17 +164,17 @@ public class Trade implements ModInitializer {
 
     TradeRequest tr = new TradeRequest(tFrom, tTo, (int) config.getValue("timeout") * 1000);
     if (activeTrades.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
-      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.exists"), false);
+      sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.exists"));
       return 1;
     }
     tr.setTimeoutCallback(() -> {
       activeTrades.remove(tr);
-      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.timeout.sender", tTo.getDisplayName()), false);
-      tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.timeout.receiver", tFrom.getDisplayName()), false);
+      sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.timeout.sender", tTo.getDisplayName()));
+      sendTradeMessage(tTo, Component.translatable("messages.fabrictrade.request.timeout.receiver", tFrom.getDisplayName()));
     });
     activeTrades.add(tr);
 
-    tFrom.sendSystemMessage(
+    sendTradeMessage(tFrom,
       Component.translatable(
         "messages.fabrictrade.request.new.sender", tTo.getDisplayName(), Component
           .translatable("syntax.fabrictrade.cancel")
@@ -175,10 +182,10 @@ public class Trade implements ModInitializer {
             .withClickEvent(new ClickEvent.RunCommand("/tradecancel " + tTo.getName().getString()))
             .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradecancel " + tTo.getName().getString())))
             .withColor(ChatFormatting.GOLD)), config.getValue("timeout").toString()
-      ), false
+      )
     );
 
-    tTo.sendSystemMessage(
+    sendTradeMessage(tTo,
       Component.translatable(
         "messages.fabrictrade.request.new.receiver", tFrom.getDisplayName(), Component
           .translatable("syntax.fabrictrade.accept")
@@ -191,7 +198,7 @@ public class Trade implements ModInitializer {
             .withClickEvent(new ClickEvent.RunCommand("/tradedeny " + tFrom.getName().getString()))
             .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradedeny " + tFrom.getName().getString())))
             .withColor(ChatFormatting.GOLD)), config.getValue("timeout").toString()
-      ), false
+      )
     );
     return 1;
   }
@@ -228,11 +235,11 @@ public class Trade implements ModInitializer {
       candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
       var text = failMessageIfMultiple(candidates, "accept");
       if (text.isPresent()) {
-        tTo.sendSystemMessage(text.get(), false);
+        sendTradeMessage(tTo, text.get());
         return 1;
       }
       if (candidates.length < 1) {
-        tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
+        sendTradeMessage(tTo, Component.translatable("messages.fabrictrade.request.none"));
         return 1;
       }
       tFrom = candidates[0].tFrom;
@@ -246,8 +253,8 @@ public class Trade implements ModInitializer {
 
     tr.cancelTimeout();
     activeTrades.remove(tr);
-    tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.accept.you"), false);
-    tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.accept.partner", tr.tTo.getDisplayName()), false);
+    sendTradeMessage(tr.tTo, Component.translatable("messages.fabrictrade.request.accept.you"));
+    sendTradeMessage(tr.tFrom, Component.translatable("messages.fabrictrade.request.accept.partner", tr.tTo.getDisplayName()));
     return 1;
   }
 
@@ -260,11 +267,11 @@ public class Trade implements ModInitializer {
       candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
       var text = failMessageIfMultiple(candidates, "deny");
       if (text.isPresent()) {
-        tTo.sendSystemMessage(text.get(), false);
+        sendTradeMessage(tTo, text.get());
         return 1;
       }
       if (candidates.length < 1) {
-        tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
+        sendTradeMessage(tTo, Component.translatable("messages.fabrictrade.request.none"));
         return 1;
       }
       tFrom = candidates[0].tFrom;
@@ -274,8 +281,8 @@ public class Trade implements ModInitializer {
     if (tr == null) return 1;
     tr.cancelTimeout();
     activeTrades.remove(tr);
-    tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.deny.you"), false);
-    tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.deny.partner", tr.tTo.getDisplayName()), false);
+    sendTradeMessage(tr.tTo, Component.translatable("messages.fabrictrade.request.deny.you"));
+    sendTradeMessage(tr.tFrom, Component.translatable("messages.fabrictrade.request.deny.partner", tr.tTo.getDisplayName()));
     return 1;
   }
 
@@ -290,11 +297,11 @@ public class Trade implements ModInitializer {
         .toArray(TradeRequest[]::new);
       var text = failMessageIfMultiple(candidates, "cancel");
       if (text.isPresent()) {
-        tTo.sendSystemMessage(text.get(), false);
+        sendTradeMessage(tTo, text.get());
         return 1;
       }
       if (candidates.length < 1) {
-        tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
+        sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.none"));
         return 1;
       }
       tTo = candidates[0].tTo;
@@ -304,8 +311,8 @@ public class Trade implements ModInitializer {
     if (tr == null) return 1;
     tr.cancelTimeout();
     activeTrades.remove(tr);
-    tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.partner", tr.tFrom.getDisplayName()), false);
-    tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.you"), false);
+    sendTradeMessage(tr.tTo, Component.translatable("messages.fabrictrade.request.cancel.partner", tr.tFrom.getDisplayName()));
+    sendTradeMessage(tr.tFrom, Component.translatable("messages.fabrictrade.request.cancel.you"));
     return 1;
   }
 
@@ -317,9 +324,9 @@ public class Trade implements ModInitializer {
 
     if (otr.isEmpty()) {
       if (action == TradeAction.CANCEL) {
-        tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none.specific"), false);
+        sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.none.specific"));
       } else {
-        tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none.specific"), false);
+        sendTradeMessage(tTo, Component.translatable("messages.fabrictrade.request.none.specific"));
       }
       return null;
     }
@@ -332,7 +339,7 @@ public class Trade implements ModInitializer {
     if (recentRequests.containsKey(tFrom.getUUID())) {
       long diff = Instant.now().getEpochSecond() - recentRequests.get(tFrom.getUUID());
       if (diff < (int) config.getValue("cooldown")) {
-        tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cooldown"), false);
+        sendTradeMessage(tFrom, Component.translatable("messages.fabrictrade.request.cooldown"));
         return true;
       }
     }
