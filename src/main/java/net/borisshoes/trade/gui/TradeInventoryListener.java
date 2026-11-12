@@ -1,11 +1,9 @@
 package net.borisshoes.trade.gui;
 
 import net.borisshoes.trade.TradeSession;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.InventoryChangedListener;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.Container;
 
-public class TradeInventoryListener implements InventoryChangedListener {
+public class TradeInventoryListener {
    
    TradeSession session;
    private boolean updating = false;
@@ -14,8 +12,7 @@ public class TradeInventoryListener implements InventoryChangedListener {
       this.session = session;
    }
    
-   @Override
-   public void onInventoryChanged(Inventory inv){
+   public void containerChanged(Container inv){
       if(!updating){
          updating = true;
          session.checkReadyStatus();
