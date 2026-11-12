@@ -21,6 +21,8 @@
   "messages.fabrictrade.request.cancel.partner": "§b%s §chas cancelled the trade request!",
   "messages.fabrictrade.request.cooldown": "§cWait before creating a new trade request!",
   "messages.fabrictrade.request.completed": "§aTrade Completed!",
+  "messages.fabrictrade.request.multiple.marker": "  -",
+  "messages.fabrictrade.request.multiple.requester": "from %s",
   "ui.fabrictrade.title": "Trading with %s",
   "ui.fabrictrade.confirm": "§cConfirm",
   "ui.fabrictrade.confirmed.you": "§aConfirmed!",

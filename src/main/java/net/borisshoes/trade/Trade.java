@@ -31,351 +31,382 @@ import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 public class Trade implements ModInitializer {
-   private static final Logger logger = LogManager.getLogger("Trade");
-   private static final String CONFIG_NAME = "Trade.properties";
-   
-   private final ArrayList<TradeRequest> activeTrades = new ArrayList<>();
-   private final HashMap<UUID, Long> recentRequests = new HashMap<>();
-   private ConfigUtils config;
-   
-   @Nullable
-   private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {
-      String start = builder.getRemaining().toLowerCase();
-      values.stream().filter(s -> s.toLowerCase().startsWith(start)).forEach(builder::suggest);
-      return builder.buildFuture();
-   }
-   
-   private CompletableFuture<Suggestions> getTradeInitSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-      CommandSourceStack scs = context.getSource();
-      
-      List<String> activeTargets = Stream.concat(
-            activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()),
-            activeTrades.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString())
-      ).collect(Collectors.toList());
-      List<String> others = Arrays.stream(scs.getServer().getPlayerList().getPlayerNamesArray())
-            .filter(s -> !s.equals(scs.getTextName()) && !activeTargets.contains(s))
+  private static final Logger logger = LogManager.getLogger("Trade");
+  private static final String CONFIG_NAME = "Trade.properties";
+
+  private final ArrayList<TradeRequest> activeTrades = new ArrayList<>();
+  private final HashMap<UUID, Long> recentRequests = new HashMap<>();
+  private ConfigUtils config;
+
+  @Nullable
+  private static CompletableFuture<Suggestions> filterSuggestionsByInput(SuggestionsBuilder builder, List<String> values) {
+    String start = builder.getRemaining().toLowerCase();
+    values.stream().filter(s -> s.toLowerCase().startsWith(start)).forEach(builder::suggest);
+    return builder.buildFuture();
+  }
+
+  private CompletableFuture<Suggestions> getTradeInitSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    CommandSourceStack scs = context.getSource();
+
+    List<String> activeTargets = Stream.concat(
+      activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()), activeTrades
+        .stream()
+        .map(tradeRequest -> tradeRequest.tFrom.getName().getString())
+    ).collect(Collectors.toList());
+    List<String> others = Arrays
+      .stream(scs.getServer().getPlayerList().getPlayerNamesArray())
+      .filter(s -> !s.equals(scs.getTextName()) && !activeTargets.contains(s))
+      .collect(Collectors.toList());
+    return filterSuggestionsByInput(builder, others);
+  }
+
+  private CompletableFuture<Suggestions> getTradeTargetSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    List<String> activeTargets = activeTrades
+      .stream()
+      .map(tradeRequest -> tradeRequest.tFrom.getName().getString())
+      .collect(Collectors.toList());
+    return filterSuggestionsByInput(builder, activeTargets);
+  }
+
+  private CompletableFuture<Suggestions> getTradeSenderSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+    List<String> activeTargets = activeTrades
+      .stream()
+      .map(tradeRequest -> tradeRequest.tTo.getName().getString())
+      .collect(Collectors.toList());
+    return filterSuggestionsByInput(builder, activeTargets);
+  }
+
+  static class CooldownModeConfigValue extends ConfigUtils.IConfigValue<TradeCooldownMode> {
+    public CooldownModeConfigValue(@NotNull String name, TradeCooldownMode defaultValue, @Nullable ConfigUtils.Command command) {
+      super(
+        name, defaultValue, null, command, (context, builder) -> {
+          List<String> tcmValues = Arrays
+            .stream(TradeCooldownMode.values())
+            .map(String::valueOf)
             .collect(Collectors.toList());
-      return filterSuggestionsByInput(builder, others);
-   }
-   
-   private CompletableFuture<Suggestions> getTradeTargetSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-      List<String> activeTargets = activeTrades.stream().map(tradeRequest -> tradeRequest.tFrom.getName().getString()).collect(Collectors.toList());
-      return filterSuggestionsByInput(builder, activeTargets);
-   }
-   
-   private CompletableFuture<Suggestions> getTradeSenderSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-      List<String> activeTargets = activeTrades.stream().map(tradeRequest -> tradeRequest.tTo.getName().getString()).collect(Collectors.toList());
-      return filterSuggestionsByInput(builder, activeTargets);
-   }
-   
-   static class CooldownModeConfigValue extends ConfigUtils.IConfigValue<TradeCooldownMode> {
-      public CooldownModeConfigValue(@NotNull String name, TradeCooldownMode defaultValue, @Nullable ConfigUtils.Command command) {
-         super(name, defaultValue, null, command, (context, builder) -> {
-            List<String> tcmValues = Arrays.stream(TradeCooldownMode.values()).map(String::valueOf).collect(Collectors.toList());
-            return filterSuggestionsByInput(builder, tcmValues);
-         });
-      }
-      
-      @Override
-      public TradeCooldownMode getFromProps(Properties props) {
-         return TradeCooldownMode.valueOf(props.getProperty(name));
-      }
-      
-      @Override
-      public ArgumentType<?> getArgumentType() {
-         return StringArgumentType.string();
-      }
-      
-      @Override
-      public TradeCooldownMode parseArgumentValue(CommandContext<CommandSourceStack> ctx) {
-         return TradeCooldownMode.valueOf(StringArgumentType.getString(ctx, name));
-      }
-   }
-   
-   @Override
-   public void onInitialize(){
-      logger.info("Initializing Trade...");
-   
-      config = new ConfigUtils(FabricLoader.getInstance().getConfigDir().resolve(CONFIG_NAME).toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[] {
-            new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
-                  new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")),
-            new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0),
-                  new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")),
-            new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated,
-                  new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))
-      }));
-   
-      CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
-         dispatcher.register(literal("trade")
-               .then(argument("target", EntityArgument.player()).suggests(this::getTradeInitSuggestions)
-                     .executes(ctx -> tradeInit(ctx, getPlayer(ctx, "target")))));
-      
-         dispatcher.register(literal("tradeaccept")
-               .then(argument("target", EntityArgument.player()).suggests(this::getTradeTargetSuggestions)
-                     .executes(ctx -> tradeAccept(ctx, getPlayer(ctx, "target"))))
-               .executes(ctx -> tradeAccept(ctx, null)));
-      
-         dispatcher.register(literal("tradedeny")
-               .then(argument("target", EntityArgument.player()).suggests(this::getTradeTargetSuggestions)
-                     .executes(ctx -> tradeDeny(ctx, getPlayer(ctx, "target"))))
-               .executes(ctx -> tradeDeny(ctx, null)));
-         
-         dispatcher.register(literal("tradecancel")
-               .then(argument("target", EntityArgument.player()).suggests(this::getTradeSenderSuggestions)
-                     .executes(ctx -> tradeCancel(ctx, getPlayer(ctx, "target"))))
-               .executes(ctx -> tradeCancel(ctx, null)));
-      
-         dispatcher.register(config.generateCommand("tradeconfig"));
-      });
-      
-   }
-   
-   public int tradeInit(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
-      final ServerPlayer tFrom = ctx.getSource().getPlayer();
-      
-      if (tFrom.equals(tTo)) {
-         tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.self"), false);
-         return 1;
-      }
-      
-      if (checkCooldown(tFrom)) return 1;
-      
-      TradeRequest tr = new TradeRequest(tFrom, tTo, (int) config.getValue("timeout") * 1000);
-      if (activeTrades.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
-         tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.exists"), false);
-         return 1;
-      }
-      tr.setTimeoutCallback(() -> {
-         activeTrades.remove(tr);
-         tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.timeout.sender", tTo.getDisplayName()), false);
-         tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.timeout.receiver", tFrom.getDisplayName()), false);
-      });
-      activeTrades.add(tr);
-      
-      tFrom.sendSystemMessage(
-              Component.translatable("messages.fabrictrade.request.new.sender",
-                      tTo.getDisplayName(),
-                      Component.translatable("syntax.fabrictrade.cancel").withStyle(s ->
-                      s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + tTo.getName().getString()))
-                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradecancel " + tTo.getName().getString())))
-                              .withColor(ChatFormatting.GOLD)),
-                      config.getValue("timeout").toString()
-              ), false);
-      
-      tTo.sendSystemMessage(
-              Component.translatable("messages.fabrictrade.request.new.receiver",
-                      tFrom.getDisplayName(),
-                      Component.translatable("syntax.fabrictrade.accept").withStyle(s ->
-                              s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + tFrom.getName().getString()))
-                                      .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradeaccept " + tFrom.getName().getString())))
-                                      .withColor(ChatFormatting.GOLD)),
-                      Component.translatable("syntax.fabrictrade.deny").withStyle(s ->
-                              s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + tFrom.getName().getString()))
-                                      .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradedeny " + tFrom.getName().getString())))
-                                      .withColor(ChatFormatting.GOLD)),
-                      config.getValue("timeout").toString()
-              ), false);
+          return filterSuggestionsByInput(builder, tcmValues);
+        }
+      );
+    }
+
+    @Override
+    public TradeCooldownMode getFromProps(Properties props) {
+      return TradeCooldownMode.valueOf(props.getProperty(name));
+    }
+
+    @Override
+    public ArgumentType<?> getArgumentType() {
+      return StringArgumentType.string();
+    }
+
+    @Override
+    public TradeCooldownMode parseArgumentValue(CommandContext<CommandSourceStack> ctx) {
+      return TradeCooldownMode.valueOf(StringArgumentType.getString(ctx, name));
+    }
+  }
+
+  @Override
+  public void onInitialize() {
+    logger.info("Initializing Trade...");
+
+    config = new ConfigUtils(
+      FabricLoader
+        .getInstance()
+        .getConfigDir()
+        .resolve(CONFIG_NAME)
+        .toFile(), logger, Arrays.asList(new ConfigUtils.IConfigValue[]{new ConfigUtils.IntegerConfigValue("timeout", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Timeout is %s seconds", "Timeout set to %s seconds")), new ConfigUtils.IntegerConfigValue("cooldown", 60, new ConfigUtils.IntegerConfigValue.IntLimits(0), new ConfigUtils.Command("Cooldown is %s seconds", "Cooldown set to %s seconds")), new CooldownModeConfigValue("cooldown-mode", TradeCooldownMode.WhoInitiated, new ConfigUtils.Command("Cooldown Mode is %s", "Cooldown Mode set to %s"))})
+    );
+
+    CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, registrationEnvironment) -> {
+      dispatcher.register(literal("trade").then(argument("target", EntityArgument.player())
+        .suggests(this::getTradeInitSuggestions)
+        .executes(ctx -> tradeInit(ctx, getPlayer(ctx, "target")))));
+
+      dispatcher.register(literal("tradeaccept")
+        .then(argument("target", EntityArgument.player())
+          .suggests(this::getTradeTargetSuggestions)
+          .executes(ctx -> tradeAccept(ctx, getPlayer(ctx, "target"))))
+        .executes(ctx -> tradeAccept(ctx, null)));
+
+      dispatcher.register(literal("tradedeny")
+        .then(argument("target", EntityArgument.player())
+          .suggests(this::getTradeTargetSuggestions)
+          .executes(ctx -> tradeDeny(ctx, getPlayer(ctx, "target"))))
+        .executes(ctx -> tradeDeny(ctx, null)));
+
+      dispatcher.register(literal("tradecancel")
+        .then(argument("target", EntityArgument.player())
+          .suggests(this::getTradeSenderSuggestions)
+          .executes(ctx -> tradeCancel(ctx, getPlayer(ctx, "target"))))
+        .executes(ctx -> tradeCancel(ctx, null)));
+
+      dispatcher.register(config.generateCommand("tradeconfig"));
+    });
+
+  }
+
+  public int tradeInit(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
+    final ServerPlayer tFrom = ctx.getSource().getPlayer();
+
+    if (tFrom.equals(tTo)) {
+      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.self"), false);
       return 1;
-   }
-   
-   public int tradeAccept(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) throws CommandSyntaxException {
-      final ServerPlayer tTo = ctx.getSource().getPlayer();
-      
-      if (tFrom == null) {
-         TradeRequest[] candidates;
-         candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
-         if (candidates.length > 1) {
-            MutableComponent text = Component.translatable("messages.fabrictrade.request.accept.multiple" + "\n");
-            Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
-                  text.append(Component.literal(name).withStyle(s ->
-                        s.withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + name))
-                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradeaccept " + name)))
-                              .withColor(ChatFormatting.GOLD))).append(" "));
-            tTo.sendSystemMessage(text, false);
-            return 1;
-         }
-         if (candidates.length < 1) {
-            tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
-            return 1;
-         }
-         tFrom = candidates[0].tFrom;
-      }
-   
-      TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.ACCEPT);
-      if (tr == null) return 1;
-      
-      // Do the trade thing
-      new TradeSession(tFrom,tTo,tr,this);
-      
-      tr.cancelTimeout();
+    }
+
+    if (checkCooldown(tFrom)) return 1;
+
+    TradeRequest tr = new TradeRequest(tFrom, tTo, (int) config.getValue("timeout") * 1000);
+    if (activeTrades.stream().anyMatch(tpaRequest -> tpaRequest.equals(tr))) {
+      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.exists"), false);
+      return 1;
+    }
+    tr.setTimeoutCallback(() -> {
       activeTrades.remove(tr);
-      tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.accept.you"), false);
-      tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.accept.partner", tr.tTo.getDisplayName()), false);
-      return 1;
-   }
-   
-   
-   public int tradeDeny(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) throws CommandSyntaxException{
-      final ServerPlayer tTo = ctx.getSource().getPlayer();
-      
-      if (tFrom == null) {
-         TradeRequest[] candidates;
-         candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
-         if (candidates.length > 1) {
-            MutableComponent text = Component.translatable("messages.fabrictrade.request.deny.multiple" + "\n");
-            Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tFrom.getName().getString()).forEach(name ->
-                  text.append(Component.literal(name).withStyle(s ->
-                        s.withClickEvent(new ClickEvent.RunCommand("/tradedeny " + name))
-                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradedeny " + name)))
-                              .withColor(ChatFormatting.GOLD))).append(" "));
-            tTo.sendSystemMessage(text, false);
-            return 1;
-         }
-         if (candidates.length < 1) {
-            tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
-            return 1;
-         }
-         tFrom = candidates[0].tFrom;
+      tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.timeout.sender", tTo.getDisplayName()), false);
+      tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.timeout.receiver", tFrom.getDisplayName()), false);
+    });
+    activeTrades.add(tr);
+
+    tFrom.sendSystemMessage(
+      Component.translatable(
+        "messages.fabrictrade.request.new.sender", tTo.getDisplayName(), Component
+          .translatable("syntax.fabrictrade.cancel")
+          .withStyle(s -> s
+            .withClickEvent(new ClickEvent.RunCommand("/tradecancel " + tTo.getName().getString()))
+            .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradecancel " + tTo.getName().getString())))
+            .withColor(ChatFormatting.GOLD)), config.getValue("timeout").toString()
+      ), false
+    );
+
+    tTo.sendSystemMessage(
+      Component.translatable(
+        "messages.fabrictrade.request.new.receiver", tFrom.getDisplayName(), Component
+          .translatable("syntax.fabrictrade.accept")
+          .withStyle(s -> s
+            .withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + tFrom.getName().getString()))
+            .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradeaccept " + tFrom.getName().getString())))
+            .withColor(ChatFormatting.GOLD)), Component
+          .translatable("syntax.fabrictrade.deny")
+          .withStyle(s -> s
+            .withClickEvent(new ClickEvent.RunCommand("/tradedeny " + tFrom.getName().getString()))
+            .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradedeny " + tFrom.getName().getString())))
+            .withColor(ChatFormatting.GOLD)), config.getValue("timeout").toString()
+      ), false
+    );
+    return 1;
+  }
+
+  private Optional<MutableComponent> failMessageIfMultiple(TradeRequest[] candidates, String key) {
+    if (candidates.length > 1) {
+      MutableComponent text = Component.translatable("messages.fabrictrade.request." + key + ".multiple");
+      for (TradeRequest candidate : candidates) {
+        var name = candidate.tFrom.getName().getString();
+        text
+          .append("\n")
+          .append(Component.translatable("messages.fabrictrade.request.multiple.marker").withStyle(ChatFormatting.GRAY))
+          .append(" ")
+          .append(
+            Component
+              .translatable("messages.fabrictrade.request.multiple.requester", name)
+              .withStyle(s -> s
+                .withClickEvent(new ClickEvent.RunCommand("/tradeaccept " + name))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradeaccept " + name)))
+                .withColor(ChatFormatting.GOLD)
+              )
+          );
       }
-   
-      TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.DENY);
-      if (tr == null) return 1;
-      tr.cancelTimeout();
-      activeTrades.remove(tr);
-      tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.deny.you"), false);
-      tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.deny.partner", tr.tTo.getDisplayName()), false);
-      return 1;
-   }
-   
-   public int tradeCancel(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
-      final ServerPlayer tFrom = ctx.getSource().getPlayer();
-      
-      if (tTo == null) {
-         TradeRequest[] candidates;
-         candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom)).toArray(TradeRequest[]::new);
-         if (candidates.length > 1) {
-            MutableComponent text = Component.translatable("messages.fabrictrade.request.cancel.multiple" + "\n");
-            Arrays.stream(candidates).map(tpaRequest -> tpaRequest.tTo.getName().getString()).forEach(name ->
-                  text.append(Component.literal(name).withStyle(s ->
-                        s.withClickEvent(new ClickEvent.RunCommand("/tradecancel " + name))
-                              .withHoverEvent(new HoverEvent.ShowText(Component.literal("/tradecancel " + name)))
-                              .withColor(ChatFormatting.GOLD))).append(" "));
-            tFrom.sendSystemMessage(text, false);
-            return 1;
-         }
-         if (candidates.length < 1) {
-            tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
-            return 1;
-         }
-         tTo = candidates[0].tTo;
+      return Optional.of(text);
+    }
+    return Optional.empty();
+  }
+
+  public int tradeAccept(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) throws CommandSyntaxException {
+    final ServerPlayer tTo = ctx.getSource().getPlayer();
+
+    if (tFrom == null) {
+      TradeRequest[] candidates;
+      candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
+      var text = failMessageIfMultiple(candidates, "accept");
+      if (text.isPresent()) {
+        tTo.sendSystemMessage(text.get(), false);
+        return 1;
       }
-      
-      TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.CANCEL);
-      if (tr == null) return 1;
-      tr.cancelTimeout();
-      activeTrades.remove(tr);
-      tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.partner", tr.tFrom.getDisplayName()), false);
-      tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.you"), false);
-      return 1;
-   }
-   
-   private TradeRequest getTradeRequest(ServerPlayer tFrom, ServerPlayer tTo, TradeAction action) {
-      Optional<TradeRequest> otr = activeTrades.stream()
-            .filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom) && tpaRequest.tTo.equals(tTo)).findFirst();
-      
-      if (otr.isEmpty()) {
-         if (action == TradeAction.CANCEL) {
-            tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none.specific"), false);
-         } else {
-            tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none.specific"), false);
-         }
-         return null;
+      if (candidates.length < 1) {
+        tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
+        return 1;
       }
-      
-      return otr.get();
-   }
-   
-   
-   private boolean checkCooldown(ServerPlayer tFrom) {
-      if (recentRequests.containsKey(tFrom.getUUID())) {
-         long diff = Instant.now().getEpochSecond() - recentRequests.get(tFrom.getUUID());
-         if (diff < (int) config.getValue("cooldown")) {
-            tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cooldown"), false);
-            return true;
-         }
+      tFrom = candidates[0].tFrom;
+    }
+
+    TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.ACCEPT);
+    if (tr == null) return 1;
+
+    // Do the trade thing
+    new TradeSession(tFrom, tTo, tr, this);
+
+    tr.cancelTimeout();
+    activeTrades.remove(tr);
+    tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.accept.you"), false);
+    tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.accept.partner", tr.tTo.getDisplayName()), false);
+    return 1;
+  }
+
+
+  public int tradeDeny(CommandContext<CommandSourceStack> ctx, ServerPlayer tFrom) throws CommandSyntaxException {
+    final ServerPlayer tTo = ctx.getSource().getPlayer();
+
+    if (tFrom == null) {
+      TradeRequest[] candidates;
+      candidates = activeTrades.stream().filter(tpaRequest -> tpaRequest.tTo.equals(tTo)).toArray(TradeRequest[]::new);
+      var text = failMessageIfMultiple(candidates, "deny");
+      if (text.isPresent()) {
+        tTo.sendSystemMessage(text.get(), false);
+        return 1;
       }
-      return false;
-   }
-   
-   private enum TradeAction {
-      ACCEPT, DENY, CANCEL
-   }
-   
-   public static class TradeRequest {
-      ServerPlayer tFrom;
-      ServerPlayer tTo;
-      
-      long timeout;
-      
-      Timer timer;
-      
-      public TradeRequest(ServerPlayer tFrom, ServerPlayer tTo, int timeoutMS) {
-         this.tFrom = tFrom;
-         this.tTo = tTo;
-         this.timeout = timeoutMS;
+      if (candidates.length < 1) {
+        tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
+        return 1;
       }
-      
-      void setTimeoutCallback(Timeout callback) {
-         timer = new Timer();
-         timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-               callback.onTimeout();
-            }
-         }, timeout);
+      tFrom = candidates[0].tFrom;
+    }
+
+    TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.DENY);
+    if (tr == null) return 1;
+    tr.cancelTimeout();
+    activeTrades.remove(tr);
+    tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.deny.you"), false);
+    tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.deny.partner", tr.tTo.getDisplayName()), false);
+    return 1;
+  }
+
+  public int tradeCancel(CommandContext<CommandSourceStack> ctx, ServerPlayer tTo) throws CommandSyntaxException {
+    final ServerPlayer tFrom = ctx.getSource().getPlayer();
+
+    if (tTo == null) {
+      TradeRequest[] candidates;
+      candidates = activeTrades
+        .stream()
+        .filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom))
+        .toArray(TradeRequest[]::new);
+      var text = failMessageIfMultiple(candidates, "cancel");
+      if (text.isPresent()) {
+        tTo.sendSystemMessage(text.get(), false);
+        return 1;
       }
-      
-      void cancelTimeout() {
-         timer.cancel();
+      if (candidates.length < 1) {
+        tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none"), false);
+        return 1;
       }
-      
-      @Override
-      public boolean equals(Object o) {
-         if (this == o) return true;
-         if (o == null || getClass() != o.getClass()) return false;
-         TradeRequest that = (TradeRequest) o;
-         return tFrom.equals(that.tFrom) &&
-               tTo.equals(that.tTo);
+      tTo = candidates[0].tTo;
+    }
+
+    TradeRequest tr = getTradeRequest(tFrom, tTo, TradeAction.CANCEL);
+    if (tr == null) return 1;
+    tr.cancelTimeout();
+    activeTrades.remove(tr);
+    tr.tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.partner", tr.tFrom.getDisplayName()), false);
+    tr.tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cancel.you"), false);
+    return 1;
+  }
+
+  private TradeRequest getTradeRequest(ServerPlayer tFrom, ServerPlayer tTo, TradeAction action) {
+    Optional<TradeRequest> otr = activeTrades
+      .stream()
+      .filter(tpaRequest -> tpaRequest.tFrom.equals(tFrom) && tpaRequest.tTo.equals(tTo))
+      .findFirst();
+
+    if (otr.isEmpty()) {
+      if (action == TradeAction.CANCEL) {
+        tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none.specific"), false);
+      } else {
+        tTo.sendSystemMessage(Component.translatable("messages.fabrictrade.request.none.specific"), false);
       }
-      
-      @Override
-      public int hashCode() {
-         return Objects.hash(tFrom, tTo);
+      return null;
+    }
+
+    return otr.get();
+  }
+
+
+  private boolean checkCooldown(ServerPlayer tFrom) {
+    if (recentRequests.containsKey(tFrom.getUUID())) {
+      long diff = Instant.now().getEpochSecond() - recentRequests.get(tFrom.getUUID());
+      if (diff < (int) config.getValue("cooldown")) {
+        tFrom.sendSystemMessage(Component.translatable("messages.fabrictrade.request.cooldown"), false);
+        return true;
       }
-      
-      @Override
-      public String toString() {
-         return "TradeRequest{" + "tFrom=" + tFrom +
-               ", tTo=" + tTo +
-               '}';
+    }
+    return false;
+  }
+
+  private enum TradeAction {
+    ACCEPT, DENY, CANCEL
+  }
+
+  public static class TradeRequest {
+    ServerPlayer tFrom;
+    ServerPlayer tTo;
+
+    long timeout;
+
+    Timer timer;
+
+    public TradeRequest(ServerPlayer tFrom, ServerPlayer tTo, int timeoutMS) {
+      this.tFrom = tFrom;
+      this.tTo = tTo;
+      this.timeout = timeoutMS;
+    }
+
+    void setTimeoutCallback(Timeout callback) {
+      timer = new Timer();
+      timer.schedule(
+        new TimerTask() {
+          @Override
+          public void run() {
+            callback.onTimeout();
+          }
+        }, timeout
+      );
+    }
+
+    void cancelTimeout() {
+      timer.cancel();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      TradeRequest that = (TradeRequest) o;
+      return tFrom.equals(that.tFrom) && tTo.equals(that.tTo);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(tFrom, tTo);
+    }
+
+    @Override
+    public String toString() {
+      return "TradeRequest{" + "tFrom=" + tFrom + ", tTo=" + tTo + '}';
+    }
+  }
+
+  enum TradeCooldownMode {
+    WhoInitiated, BothUsers
+  }
+
+  interface Timeout {
+    void onTimeout();
+  }
+
+  public void completeSession(ServerPlayer tFrom, ServerPlayer tTo, TradeRequest tr) {
+    switch ((TradeCooldownMode) config.getValue("cooldown-mode")) {
+      case BothUsers -> {
+        recentRequests.put(tr.tFrom.getUUID(), Instant.now().getEpochSecond());
+        recentRequests.put(tr.tTo.getUUID(), Instant.now().getEpochSecond());
       }
-   }
-   
-   enum TradeCooldownMode {
-      WhoInitiated, BothUsers
-   }
-   
-   interface Timeout {
-      void onTimeout();
-   }
-   
-   public void completeSession(ServerPlayer tFrom, ServerPlayer tTo, TradeRequest tr){
-      switch ((TradeCooldownMode) config.getValue("cooldown-mode")) {
-         case BothUsers -> {
-            recentRequests.put(tr.tFrom.getUUID(), Instant.now().getEpochSecond());
-            recentRequests.put(tr.tTo.getUUID(), Instant.now().getEpochSecond());
-         }
-         case WhoInitiated -> recentRequests.put(tr.tFrom.getUUID(), Instant.now().getEpochSecond());
-      }
-   }
+      case WhoInitiated -> recentRequests.put(tr.tFrom.getUUID(), Instant.now().getEpochSecond());
+    }
+  }
 }
